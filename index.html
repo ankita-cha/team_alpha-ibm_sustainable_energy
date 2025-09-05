@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified AI Energy Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        .input-group {
+            position: relative;
+        }
+        .input-group input, .input-group select {
+            padding-left: 2.5rem;
+        }
+        .input-group .icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        .log-container {
+            background-color: #1f2937;
+            color: #d1d5db;
+            font-family: 'monospace';
+            border-radius: 0.5rem;
+        }
+        .log-line {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #374151;
+            word-wrap: break-word;
+        }
+        .log-line:last-child {
+            border-bottom: none;
+        }
+        .loader {
+            border: 3px solid #4b5563;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tab {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        .tab.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .calculator-content {
+            display: none;
+        }
+        .agent-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        .generation { background-color: #3b82f6; color: white; }
+        .storage { background-color: #10b981; color: white; }
+        .distribution { background-color: #f59e0b; color: white; }
+        .consumption { background-color: #8b5cf6; color: white; }
+        .maintenance { background-color: #ef4444; color: white; }
+        .pricing { background-color: #ec4899; color: white; }
+        .previous-prompts {
+            position: absolute;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            margin-top: 0.25rem;
+            display: none;
+        }
+        .previous-prompt {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .previous-prompt:hover {
+            background-color: #f9fafb;
+        }
+        .location-info {
+            background-color: #1e40af;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .location-item {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+        }
+        .location-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-bottom: 0.25rem;
+        }
+        .location-value {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        #map {
+            height: 200px;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Unified AI Energy Management System</h1>
+            <p class="mt-2 text-lg text-gray-600">An intelligent hub for energy analysis and calculation.</p>
+        </header>
+
+        <!-- Location Information Section -->
+        <div id="location-container" class="location-info" style="display: none;">
+            <h2 class="text-xl font-bold mb-4">Current Location Insights</h2>
+            <div class="location-grid">
+                <div class="location-item">
+                    <div class="location-label">Current Location</div>
+                    <div id="location-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Local Time</div>
+                    <div id="time-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Time of Day</div>
+                    <div id="daytime-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Weather</div>
+                    <div id="weather-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Sunlight Intensity</div>
+                    <div id="sunlight-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Solar Power Output</div>
+                    <div id="solarpower-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Energy Produced (per hour)</div>
+                    <div id="energyproduced-value" class="location-value">Loading...</div>
+                </div>
+                <div class="location-item">
+                    <div class="location-label">Estimated Savings (₹/hr)</div>
+                    <div id="savings-value" class="location-value">Loading...</div>
+                </div>
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Controls -->
+            <div class="card p-6">
+                <div class="border-b border-gray-200 mb-6">
+                    <nav class="-mb-px flex space-x-2 sm:space-x-6" aria-label="Tabs">
+                        <div id="tab-ai" class="tab active" onclick="switchTab('ai')">AI Energy Agent</div>
+                        <div id="tab-calc" class="tab" onclick="switchTab('calc')">Energy Calculators</div>
+                    </nav>
+                </div>
+                
+                <!-- AI Agent Tab -->
+                <div id="content-ai" class="tab-content active">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Energy Scenario Input</h2>
+                    <div class="space-y-6">
+                        <div class="input-group relative">
+                            <label for="prompt-input" class="block text-sm font-medium text-gray-700 mb-1">Energy Situation / Question</label>
+                            <div class="relative">
+                                <i class="fas fa-bolt icon"></i>
+                                <input type="text" id="prompt-input" class="w-full p-2 border rounded-md" placeholder="e.g., solar panel is under cloud">
+                            </div>
+                            <div id="previous-prompts" class="previous-prompts"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                        <button id="run-agent-button" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-200 transform hover:scale-105 flex items-center justify-center">
+                            <i class="fas fa-cogs mr-2"></i>
+                            Run Agent System
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Energy Calculators Tab -->
+                <div id="content-calc" class="tab-content">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Renewable Energy Calculators</h2>
+                    <div class="p-4 border rounded-lg bg-gray-50">
+                        <div class="input-group">
+                            <label for="energy-type-select" class="block text-sm font-medium text-gray-700 mb-1">Choose Energy Type</label>
+                            <div class="relative">
+                                <i class="fas fa-leaf icon"></i>
+                                <select id="energy-type-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select an energy type...</option>
+                                    <option value="solar">Solar Power</option>
+                                    <option value="wind">Wind Power</option>
+                                    <option value="biogas">Biogas</option>
+                                    <option value="hydro">Micro-Hydro Power</option>
+                                    <option value="geothermal">Geothermal</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- All Calculator Sections Here -->
+                        <div id="calc-solar-wrapper" class="calculator-content mt-4">
+                             <div class="input-group">
+                                <label for="solar-calc-select" class="block text-sm font-medium text-gray-700 mb-1">Solar Calculation</label>
+                                <select id="solar-calc-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select a calculation...</option>
+                                    <option value="payback">Payback Period</option>
+                                    <option value="sizing">System Size Estimation</option>
+                                    <option value="generation">Daily Energy Generation</option>
+                                </select>
+                            </div>
+                            <div id="calc-solar-payback" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-solar-payback-cost" placeholder="Total System Cost (₹)" class="w-full p-2 border rounded-md">
+                                <input type="number" id="calc-solar-payback-bill" placeholder="Average Monthly Bill (₹)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateSolarPayback()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Payback</button>
+                            </div>
+                            <div id="calc-solar-sizing" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-solar-sizing-consumption" placeholder="Avg Daily Consumption (kWh)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateSolarSizing()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Estimate System Size</button>
+                            </div>
+                            <div id="calc-solar-generation" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-solar-generation-size" placeholder="System Size (kW)" class="w-full p-2 border rounded-md">
+                                <input type="number" id="calc-solar-generation-sunshine" value="4.5" placeholder="Avg Daily Sunshine (Hours)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateSolarGeneration()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Generation</button>
+                            </div>
+                        </div>
+
+                        <div id="calc-wind-wrapper" class="calculator-content mt-4">
+                            <div class="input-group">
+                                <label for="wind-calc-select" class="block text-sm font-medium text-gray-700 mb-1">Wind Calculation</label>
+                                <select id="wind-calc-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select a calculation...</option>
+                                    <option value="generation">Daily Energy Generation</option>
+                                </select>
+                            </div>
+                            <div id="calc-wind-generation" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-wind-generation-rating" placeholder="Turbine Power Rating (kW)" class="w-full p-2 border rounded-md">
+                                <input type="number" id="calc-wind-generation-hours" placeholder="Avg. Daily Operating Hours" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateWindGeneration()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Generation</button>
+                            </div>
+                        </div>
+
+                        <div id="calc-biogas-wrapper" class="calculator-content mt-4">
+                            <div class="input-group">
+                                <label for="biogas-calc-select" class="block text-sm font-medium text-gray-700 mb-1">Biogas Calculation</label>
+                                <select id="biogas-calc-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select a calculation...</option>
+                                    <option value="production">Daily Gas Production</option>
+                                    <option value="electricity">Equivalent Electricity</option>
+                                </select>
+                            </div>
+                            <div id="calc-biogas-production" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-biogas-production-waste" placeholder="Daily Cow Dung (kg)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateBiogasProduction()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Production</button>
+                            </div>
+                            <div id="calc-biogas-electricity" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-biogas-electricity-gas" placeholder="Daily Gas Production (m³)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateBiogasElectricity()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Electricity</button>
+                            </div>
+                        </div>
+                        
+                        <div id="calc-hydro-wrapper" class="calculator-content mt-4">
+                            <div class="input-group">
+                                <label for="hydro-calc-select" class="block text-sm font-medium text-gray-700 mb-1">Micro-Hydro Calculation</label>
+                                <select id="hydro-calc-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select a calculation...</option>
+                                    <option value="power">Potential Power Output</option>
+                                </select>
+                            </div>
+                            <div id="calc-hydro-power" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-hydro-head" placeholder="Head / Vertical Drop (meters)" class="w-full p-2 border rounded-md">
+                                <input type="number" id="calc-hydro-flow" placeholder="Flow Rate (liters per second)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateHydroPower()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Calculate Power</button>
+                            </div>
+                        </div>
+
+                        <div id="calc-geothermal-wrapper" class="calculator-content mt-4">
+                            <div class="input-group">
+                                <label for="geothermal-calc-select" class="block text-sm font-medium text-gray-700 mb-1">Geothermal Calculation</label>
+                                <select id="geothermal-calc-select" class="w-full p-2 border rounded-md bg-white">
+                                    <option value="">Select a calculation...</option>
+                                    <option value="capacity">Heating/Cooling Capacity</option>
+                                </select>
+                            </div>
+                            <div id="calc-geothermal-capacity" class="calculator-content mt-4 space-y-3">
+                                <input type="number" id="calc-geothermal-area" placeholder="House Area (square feet)" class="w-full p-2 border rounded-md">
+                                <button onclick="calculateGeothermalCapacity()" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Estimate Capacity & Savings</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Log & Response -->
+            <div class="card p-6">
+                 <h2 class="text-2xl font-semibold text-gray-800 mb-6">System Log & Response</h2>
+                 <div id="output-container" class="log-container min-h-[300px] max-h-[60vh] overflow-y-auto">
+                    <div class="log-line text-gray-400">System response will appear here...</div>
+                </div>
+                 <div id="ai-suggestion-container" class="mt-4"></div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>This system implements the LangGraph multi-agent architecture with specialized energy agents.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- Core Application State & Setup ---
+        let previousPrompts = JSON.parse(localStorage.getItem('energyAgentPrompts')) || [];
+        let currentLocation = null;
+        let map = null;
+        let marker = null;
+
+        // Default Gemini API Key
+        const DEFAULT_API_KEY = "Provide your API key";
+
+        document.addEventListener('DOMContentLoaded', function() {
+            requestLocationPermission();
+            setupPreviousPrompts();
+            setInterval(updateLocationInfo, 60000);
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`content-${tabName}`).classList.add('active');
+            document.getElementById('output-container').innerHTML = '<div class="log-line text-gray-400">System response will appear here...</div>';
+            document.getElementById('ai-suggestion-container').innerHTML = '';
+        }
+        
+        // --- Location and Weather Logic ---
+        function requestLocationPermission() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
+                        document.getElementById('location-container').style.display = 'block';
+                        initializeMap(currentLocation.lat, currentLocation.lon);
+                        updateLocationInfo();
+                    },
+                    () => simulateLocationData()
+                );
+            } else {
+                simulateLocationData();
+            }
+        }
+
+        function initializeMap(lat, lon) {
+            if (map) return;
+            map = L.map('map').setView([lat, lon], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            marker = L.marker([lat, lon]).addTo(map);
+        }
+
+        async function updateLocationInfo() {
+            if (!currentLocation) {
+                simulateLocationData();
+                return;
+            }
+            try {
+                const now = new Date();
+                document.getElementById('time-value').textContent = now.toLocaleTimeString();
+                
+                const hours = now.getHours();
+                let timeOfDay = "Night";
+                if (hours >= 6 && hours < 12) timeOfDay = "Morning";
+                else if (hours >= 12 && hours < 18) timeOfDay = "Afternoon";
+                else if (hours >= 18 && hours < 22) timeOfDay = "Evening";
+                document.getElementById('daytime-value').textContent = timeOfDay;
+
+                const locationName = await getLocationName(currentLocation.lat, currentLocation.lon);
+                document.getElementById('location-value').textContent = locationName;
+
+                const weatherData = simulateWeather(currentLocation.lat, hours);
+                document.getElementById('weather-value').textContent = weatherData.condition;
+
+                const sunlightIntensity = calculateSunlightIntensity(currentLocation.lat, now);
+                document.getElementById('sunlight-value').textContent = sunlightIntensity.toFixed(0) + " W/m²";
+
+                const solarPower = calculateSolarPowerOutput(sunlightIntensity, weatherData.cloudCover);
+                document.getElementById('solarpower-value').textContent = solarPower + " kW";
+
+                // Energy produced (simulated)
+                const energyProduced = (solarPower * 0.8).toFixed(2); // Assume 80% efficiency
+                document.getElementById('energyproduced-value').textContent = energyProduced + " kWh";
+                
+                // Estimated savings (simulated)
+                const savings = (energyProduced * 8).toFixed(2); // Assume ₹8 per kWh
+                document.getElementById('savings-value').textContent = "₹" + savings;
+
+                if(map) {
+                    map.setView([currentLocation.lat, currentLocation.lon], 13);
+                    marker.setLatLng([currentLocation.lat, currentLocation.lon]);
+                }
+
+            } catch (error) {
+                console.error("Error updating location info:", error);
+                simulateLocationData();
+            }
+        }
+
+        function simulateLocationData() {
+            const now = new Date();
+            const hours = now.getHours();
+            
+            document.getElementById('location-container').style.display = 'block';
+            document.getElementById('location-value').textContent = "Howrah, West Bengal (Simulated)";
+            document.getElementById('time-value').textContent = now.toLocaleTimeString();
+            
+            let timeOfDay = "Night";
+            if (hours >= 6 && hours < 12) timeOfDay = "Morning";
+            else if (hours >= 12 && hours < 18) timeOfDay = "Afternoon";
+            else if (hours >= 18 && hours < 22) timeOfDay = "Evening";
+            document.getElementById('daytime-value').textContent = timeOfDay;
+            
+            // Simulate random weather
+            const weatherConditions = ["Sunny", "Partly Cloudy", "Cloudy", "Rainy"];
+            const randomWeather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+            document.getElementById('weather-value').textContent = randomWeather;
+            
+            // Simulate sunlight intensity
+            let sunlight = 0;
+            if (timeOfDay === "Night") sunlight = 0;
+            else if (timeOfDay === "Morning") sunlight = 300 + Math.random() * 200;
+            else if (timeOfDay === "Afternoon") sunlight = 700 + Math.random() * 300;
+            else sunlight = 400 + Math.random() * 200;
+            
+            if (randomWeather === "Cloudy") sunlight *= 0.3;
+            else if (randomWeather === "Rainy") sunlight *= 0.1;
+            else if (randomWeather === "Partly Cloudy") sunlight *= 0.7;
+            
+            document.getElementById('sunlight-value').textContent = sunlight.toFixed(0) + " W/m²";
+            
+            // Simulate solar power output
+            const solarPower = (sunlight * 0.005 * (0.8 + Math.random() * 0.4)).toFixed(2);
+            document.getElementById('solarpower-value').textContent = solarPower + " kW";
+            
+            // Energy produced
+            const energyProduced = (solarPower * 0.8).toFixed(2);
+            document.getElementById('energyproduced-value').textContent = energyProduced + " kWh";
+            
+            // Estimated savings
+            const savings = (energyProduced * 8).toFixed(2);
+            document.getElementById('savings-value').textContent = "₹" + savings;
+
+            initializeMap(22.5958, 88.2636);
+        }
+
+        async function getLocationName(lat, lon) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                const data = await response.json();
+                return data.address.city || data.address.town || data.address.village || 'Unknown Location';
+            } catch {
+                return "Unknown Location";
+            }
+        }
+
+        function simulateWeather(lat, hour) {
+            const isDaytime = hour >= 6 && hour < 18;
+            let condition = "Sunny", cloudCover = 0.1;
+            if (Math.random() > 0.7) { condition = "Partly Cloudy"; cloudCover = 0.4; }
+            if (Math.random() > 0.9) { condition = "Cloudy"; cloudCover = 0.8; }
+            if (!isDaytime) { condition = "Clear"; cloudCover = 0; }
+            return { condition, cloudCover };
+        }
+
+        function calculateSunlightIntensity(lat, date) {
+            const dayOfYear = (date - new Date(date.getFullYear(), 0, 0)) / 86400000;
+            const declination = 23.45 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
+            const hourAngle = (date.getHours() + date.getMinutes() / 60 - 12) * 15;
+            const latRad = lat * Math.PI / 180;
+            const decRad = declination * Math.PI / 180;
+            const hourRad = hourAngle * Math.PI / 180;
+            const solarAltitude = Math.asin(Math.sin(latRad) * Math.sin(decRad) + Math.cos(latRad) * Math.cos(decRad) * Math.cos(hourRad));
+            if (solarAltitude <= 0) return 0;
+            const solarConstant = 1367;
+            const airMass = 1 / Math.sin(solarAltitude);
+            const intensity = solarConstant * Math.pow(0.7, Math.pow(airMass, 0.678));
+            return Math.max(0, intensity);
+        }
+
+        function calculateSolarPowerOutput(sunlightIntensity, cloudCover) {
+            const panelEfficiency = 0.18;
+            const systemSize = 5; // Assume 5kW system
+            const cloudFactor = 1 - (cloudCover * 0.75);
+            const output = (sunlightIntensity / 1000) * systemSize * panelEfficiency * cloudFactor;
+            return output.toFixed(2);
+        }
+        
+        // --- Previous Prompts Logic ---
+        function setupPreviousPrompts() {
+            const promptInput = document.getElementById('prompt-input');
+            const container = document.getElementById('previous-prompts');
+            promptInput.addEventListener('focus', () => {
+                if (previousPrompts.length > 0) {
+                    renderPreviousPrompts();
+                    container.style.display = 'block';
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (e.target !== promptInput) container.style.display = 'none';
+            });
+        }
+
+        function renderPreviousPrompts() {
+            const container = document.getElementById('previous-prompts');
+            container.innerHTML = '';
+            const recent = [...previousPrompts].reverse().slice(0, 5);
+            recent.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'previous-prompt';
+                el.textContent = p;
+                el.onclick = () => {
+                    document.getElementById('prompt-input').value = p;
+                    container.style.display = 'none';
+                };
+                container.appendChild(el);
+            });
+        }
+
+        function addPromptToHistory(prompt) {
+            if (!prompt.trim() || previousPrompts.includes(prompt)) return;
+            previousPrompts.push(prompt);
+            if (previousPrompts.length > 20) previousPrompts.shift();
+            localStorage.setItem('energyAgentPrompts', JSON.stringify(previousPrompts));
+        }
+
+        // --- AI Multi-Agent System (LangGraph Simulation) ---
+        class StateGraph {
+             constructor() {
+                this.nodes = {}; this.edges = {}; this.conditionalEdges = {}; this.entryPoint = null; this.state = {};
+            }
+            set_entry_point(name) { this.entryPoint = name; }
+            add_node(name, func) { this.nodes[name] = func; }
+            add_edge(from, to) { this.edges[from] = to; }
+            add_conditional_edges(from, router, mapping) { this.conditionalEdges[from] = { router, mapping }; }
+            compile() {
+                return {
+                    invoke: async (initialState) => {
+                        let state = { ...initialState };
+                        let currentNode = this.entryPoint;
+                        while (currentNode && currentNode !== 'END') {
+                            const nodeFunc = this.nodes[currentNode];
+                            state = await nodeFunc(state);
+                            if (this.conditionalEdges[currentNode]) {
+                                const { router, mapping } = this.conditionalEdges[currentNode];
+                                currentNode = mapping[router(state)];
+                            } else {
+                                currentNode = this.edges[currentNode];
+                            }
+                        }
+                        return state;
+                    }
+                }
+            }
+        }
+        
+        // Helper function for logging to the output container
+        const log = (message, isLoading = false, isError = false) => {
+            const outputContainer = document.getElementById('output-container');
+            if (outputContainer.querySelector('.text-gray-400')) {
+                outputContainer.innerHTML = '';
+            }
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            if (isError) {
+                line.innerHTML = `<span style="color: #ef4444;">${message}</span>`;
+            } else {
+                line.innerHTML = message;
+            }
+            if (isLoading) {
+                line.innerHTML += '<div class="loader"></div>';
+            }
+            outputContainer.appendChild(line);
+            outputContainer.scrollTop = outputContainer.scrollHeight;
+        };
+
+        // Node implementations
+        function get_user_input(state) {
+            // We get the prompt directly from the input field
+            return state;
+        }
+
+        async function callGeminiAPI(prompt) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${DEFAULT_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                throw error;
+            }
+        }
+
+        async function classify_energy_prompt(state) {
+            const prompt = `
+                You are an AI classifier for an energy management system with multiple agents.
+                Classify the following user request into one of the categories based on *intent*, not just keywords.
+
+                Categories:
+                - Generation → technical tasks involving creating energy from solar, wind, etc.
+                - Storage → questions about batteries, charging, discharging energy.
+                - Distribution → issues about grid load, rerouting, power delivery.
+                - Consumption → reducing usage, appliance behavior, user-side demand.
+                - Maintenance → faults, repairs, inspections, system health.
+                - Pricing → market interest, pricing help, buying products, comparing brands.
+
+                User Prompt: ${state.prompt}
+
+                Respond with only the category name: Generation, Storage, Distribution, Consumption, Maintenance, or Pricing.
+            `;
+
+            const category = await callGeminiAPI(prompt);
+            const cleanCategory = category.trim().replace(/[^a-zA-Z]/g, '').toLowerCase();
+            
+            // Map to our expected categories
+            const categoryMap = {
+                'generation': 'generation',
+                'storage': 'storage',
+                'distribution': 'distribution',
+                'consumption': 'consumption',
+                'maintenance': 'maintenance',
+                'pricing': 'pricing'
+            };
+
+            const matchedCategory = categoryMap[cleanCategory] || 'generation'; // default to generation
+            
+            // Display the category with a colored badge
+            const categoryDisplay = matchedCategory.charAt(0).toUpperCase() + matchedCategory.slice(1);
+            log(`> Identified category: <span class="agent-badge ${matchedCategory}">${categoryDisplay}</span>`);
+            
+            state.category = matchedCategory;
+            return state;
+        }
+
+        function router(state) {
+            return state.category;
+        }
+
+        async function generation_agent(state) {
+            const userPrompt = state.prompt;
+            
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const sunlight = document.getElementById('sunlight-value').textContent;
+                const solarPower = document.getElementById('solarpower-value').textContent;
+                locationContext = `\nCurrent Location Data:\n- Sunlight: ${sunlight}\n- Solar Power Output: ${solarPower}`;
+            }
+
+            const systemPrompt = `
+                You are an AI Power Generation Optimization Engine for a smart grid system.
+                Your task is to recommend the optimal generation mix and adjustments based on:
+                - Current weather conditions
+                - Power demand levels
+                - Available generation sources
+                - Efficiency and cost considerations
+                ${locationContext}
+
+                User's initial concern: ${userPrompt}
+
+                Provide a detailed technical response with:
+                1. Recommended generation source mix (percentage breakdown)
+                2. Specific adjustments to each generation type
+                3. Expected output changes
+                4. Efficiency considerations
+                5. Weather adaptation strategies
+
+                Format your response as:
+                Current Conditions → Optimization Strategy → Implementation Steps
+            `;
+
+            try {
+                const recommendation = await callGeminiAPI(systemPrompt);
+                state.response = `⚡ [Generation Optimization Plan]\n${recommendation}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #1e40af20; border-radius: 0.375rem;">
+                                        <strong style="color: #3b82f6;">Generation Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${recommendation}</pre>
+                </div>`);
+            } catch (error) {
+                state.response = `Generation analysis failed due to error: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Generation Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        async function storage_agent(state) {
+            const userPrompt = state.prompt;
+            
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const timeOfDay = document.getElementById('daytime-value').textContent;
+                const solarPower = document.getElementById('solarpower-value').textContent;
+                locationContext = `\nCurrent Location Data:\n- Time of Day: ${timeOfDay}\n- Solar Power Output: ${solarPower}`;
+            }
+
+            const systemPrompt = `
+                You are a Storage Management AI Agent for a smart energy system.
+                Your job includes:
+                - Analyzing user battery issues (charging, discharging, load)
+                - Recommending optimal load balancing decisions
+                - Simulating battery SoC (State of Charge) percentage
+                - Advising on charging based on available renewable input
+                - Recommending when to disconnect automatically once full
+                - Detecting fault symptoms
+                ${locationContext}
+
+                User's initial concern: ${userPrompt}
+
+                Format your answer as:
+                Issue →
+                Battery Status →
+                Analysis →
+                Recommendations →
+            `;
+
+            try {
+                const decision = await callGeminiAPI(systemPrompt);
+                state.response = `🔋 [Storage Decision]\n${decision}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #04785720; border-radius: 0.375rem;">
+                    <strong style="color: #10b981;">Storage Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${decision}</pre>
+                </div>`);
+            } catch (error) {
+                state.response = `Error: Could not analyze storage issue. Reason: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Storage Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        async function distribution_agent(state) {
+            const userPrompt = state.prompt;
+            
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const location = document.getElementById('location-value').textContent;
+                const time = document.getElementById('time-value').textContent;
+                locationContext = `\nCurrent Location: ${location}\nLocal Time: ${time}`;
+            }
+
+            const systemPrompt = `
+                You are an AI Distribution Agent for smart energy grid.
+                Your job is to suggest immediate operational actions to reroute or prioritize electricity.
+                Use real-world logic like prioritizing hospitals, critical infrastructure, or avoiding blackouts.
+                ${locationContext}
+
+                Original user report: ${userPrompt}
+
+                Answer:
+                - What's the likely root cause?
+                - Which zones should receive energy reroute priority?
+                - What actions should the system take immediately?
+
+                Format your output as:
+                Issue → Analysis → Action Plan
+            `;
+
+            try {
+                const decision = await callGeminiAPI(systemPrompt);
+                state.response = `🔌 [Distribution Decision]\n${decision}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #b4530920; border-radius: 0.375rem;">
+                    <strong style="color: #f59e0b;">Distribution Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${decision}</pre>
+                </div>`);
+            } catch (error) {
+                state.response = `Could not process detailed recommendation due to error: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Distribution Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        async function consumption_agent(state) {
+            const userPrompt = state.prompt;
+
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const timeOfDay = document.getElementById('daytime-value').textContent;
+                const weather = document.getElementById('weather-value').textContent;
+                locationContext = `\nCurrent Conditions:\n- Time of Day: ${timeOfDay}\n- Weather: ${weather}`;
+            }
+
+            const systemPrompt = `
+                You are a Consumption Optimization AI Agent.
+                Analyze the following energy consumption scenario and provide recommendations:
+                ${locationContext}
+                
+                User scenario: ${userPrompt}
+                
+                Provide:
+                1. Analysis of consumption patterns
+                2. Recommendations for reducing energy use
+                3. Suggestions for smart appliance control
+                4. Peak time management strategies
+                
+                Format as:
+                Analysis → Recommendations → Implementation Steps
+            `;
+
+            try {
+                const decision = await callGeminiAPI(systemPrompt);
+                state.response = `🏠 [Consumption Decision]\n${decision}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #6d28d920; border-radius: 0.375rem;">
+                    <strong style="color: #8b5cf6;">Consumption Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${decision}</pre>
+                </div>`);
+            } catch (error) {
+                state.response = `Could not analyze consumption due to error: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Consumption Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        async function maintenance_agent(state) {
+            const userPrompt = state.prompt;
+
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const weather = document.getElementById('weather-value').textContent;
+                locationContext = `\nCurrent Weather Conditions: ${weather}`;
+            }
+
+            const systemPrompt = `
+                You are an AI Maintenance Specialist for renewable energy systems.
+                Your tasks are:
+                1. Diagnose potential issues based on symptoms
+                2. Recommend cost-effective maintenance solutions
+                3. Create a prioritized maintenance schedule
+                4. Suggest preventive measures
+                5. Set reminders for future maintenance
+                ${locationContext}
+
+                User's initial concern: ${userPrompt}
+
+                Provide a detailed response with:
+                - Most likely failure points
+                - Immediate actions (safety first)
+                - Recommended maintenance procedures
+                - Cost-effective part replacements if needed
+                - Preventive maintenance schedule
+                - Reminder settings for future checks
+
+                Format your response as:
+                Diagnosis → Immediate Actions → Maintenance Plan → Cost Analysis → Reminder Schedule
+            `;
+
+            try {
+                const maintenancePlan = await callGeminiAPI(systemPrompt);
+                state.response = `🛠️ [Maintenance Plan]\n${maintenancePlan}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #b91c1c20; border-radius: 0.375rem;">
+                    <strong style="color: #ef4444;">Maintenance Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${maintenancePlan}</pre>
+                </div>`);
+            } catch (error) {
+                state.response = `Maintenance analysis failed due to error: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Maintenance Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        async function pricing_agent(state) {
+            const userPrompt = state.prompt;
+
+            // Include location data if available
+            let locationContext = "";
+            if (currentLocation) {
+                const location = document.getElementById('location-value').textContent;
+                const savings = document.getElementById('savings-value').textContent;
+                locationContext = `\nCurrent Location: ${location}\nEstimated Savings: ${savings}/hr`;
+            }
+
+            const systemPrompt = `
+                You are a Market & Pricing AI Agent for renewable energy systems.
+                Your goal is to:
+                - Help users purchase renewable energy sources from trusted brands
+                - Recommend pricing adjustments based on demand trends
+                - Suggest suitable renewable sources based on constraints
+                - List top manufacturers/vendors based on efficiency and budget
+                ${locationContext}
+
+                Initial User Prompt: ${userPrompt}
+
+                Return a response in this format:
+                Issue →
+                Analysis →
+                Action Plan →
+                Recommended Products →
+            `;
+
+            try {
+                const decision = await callGeminiAPI(systemPrompt);
+                state.response = `💰 [Market & Pricing Decision]\n${decision}`;
+                log(`<div style="margin-top: 1rem; padding: 0.75rem; background-color: #be185d20; border-radius: 0.375rem;">
+                    <strong style="color: #ec4899;">Pricing Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.5rem;">${decision}</pre>
+                    </div>`);
+            } catch (error) {
+                state.response = `Error: Failed to generate pricing recommendation. Reason: ${error.message}`;
+                log(`<span style="color: #ef4444;">Error in Pricing Agent: ${error.message}</span>`);
+            }
+
+            return state;
+        }
+
+        // Main function to run the agent system
+        async function runAgentSystem() {
+            const prompt = document.getElementById('prompt-input').value.trim();
+            
+            if (!prompt) {
+                log('Please describe your energy-related situation or question.', false, true);
+                return;
+            }
+            
+            // Add prompt to history
+            addPromptToHistory(prompt);
+            
+            // Clear previous output
+            document.getElementById('output-container').innerHTML = '';
+            log("Welcome to AI Energy Agent System.");
+            log(`> Processing: "${prompt}"`);
+
+            // Build the LangGraph
+            const builder = new StateGraph();
+            builder.set_entry_point("get_user_input");
+            builder.add_node("get_user_input", get_user_input);
+            builder.add_node("classify", classify_energy_prompt);
+            builder.add_node("generation", generation_agent);
+            builder.add_node("storage", storage_agent);
+            builder.add_node("distribution", distribution_agent);
+            builder.add_node("consumption", consumption_agent);
+            builder.add_node("maintenance", maintenance_agent);
+            builder.add_node("pricing", pricing_agent);
+            
+            builder.add_edge("get_user_input", "classify");
+            builder.add_conditional_edges("classify", router, {
+                "generation": "generation",
+                "storage": "storage",
+                "distribution": "distribution",
+                "consumption": "consumption",
+                "maintenance": "maintenance",
+                "pricing": "pricing"
+            });
+            
+            builder.add_edge("generation", "END");
+            builder.add_edge("storage", "END");
+            builder.add_edge("distribution", "END");
+            builder.add_edge("consumption", "END");
+            builder.add_edge("maintenance", "END");
+            builder.add_edge("pricing", "END");
+            
+            const graph = builder.compile();
+            
+            try {
+                const finalState = await graph.invoke({ prompt });
+                log(`<div style="margin-top: 1rem; padding: 1rem; background-color: #1e3a8a20; border-radius: 0.5rem;">
+                    <strong style="color: #3b82f6; font-size: 1.1rem;">✅ Final Agent Response:</strong><br>
+                    <pre style="white-space: pre-wrap; margin-top: 0.75rem; padding: 0.5rem; background-color: #1e293b; border-radius: 0.375rem;">${finalState.response}</pre>
+                </div>`);
+            } catch (error) {
+                log(`<span style="color: #ef4444;">An error occurred: ${error.message}</span>`);
+                console.error('Error running agent system:', error);
+            }
+        }
+
+        // Event listener for the run button
+        document.getElementById('run-agent-button').addEventListener('click', runAgentSystem);
+        
+        // Allow pressing Enter in the prompt input to run the agent system
+        document.getElementById('prompt-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                runAgentSystem();
+            }
+        });
+
+        // --- Calculator Logic ---
+        document.getElementById('energy-type-select').addEventListener('change', (e) => {
+            document.querySelectorAll('.calculator-content').forEach(el => el.style.display = 'none');
+            const selected = e.target.value;
+            if (selected) {
+                document.getElementById(`calc-${selected}-wrapper`).style.display = 'block';
+            }
+        });
+
+        ['solar-calc-select', 'wind-calc-select', 'biogas-calc-select', 'hydro-calc-select', 'geothermal-calc-select'].forEach(id => {
+            document.getElementById(id).addEventListener('change', (e) => {
+                const type = id.split('-')[0];
+                document.querySelectorAll(`#calc-${type}-wrapper .calculator-content`).forEach(el => el.style.display = 'none');
+                const selected = e.target.value;
+                if (selected) {
+                    document.getElementById(`calc-${type}-${selected}`).style.display = 'block';
+                }
+            });
+        });
+
+        function calculateSolarPayback() {
+            const cost = parseFloat(document.getElementById('calc-solar-payback-cost').value);
+            const bill = parseFloat(document.getElementById('calc-solar-payback-bill').value);
+            if (!cost || !bill) { alert('Please enter both cost and average bill.'); return; }
+            const paybackYears = cost / (bill * 12);
+            const resultText = `Estimated payback is ${paybackYears.toFixed(2)} years.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Solar Payback Period:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateSolarSizing() {
+            const consumption = parseFloat(document.getElementById('calc-solar-sizing-consumption').value);
+            if (!consumption) { alert('Please enter average daily consumption.'); return; }
+            const systemSize = consumption / 4.5;
+            const resultText = `Recommended size is ${systemSize.toFixed(2)} kW.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Solar System Size:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateSolarGeneration() {
+            const size = parseFloat(document.getElementById('calc-solar-generation-size').value);
+            const sunshine = parseFloat(document.getElementById('calc-solar-generation-sunshine').value);
+            if (!size || !sunshine) { alert('Please enter both system size and sunshine hours.'); return; }
+            const dailyGeneration = size * sunshine * 0.75;
+            const resultText = `A ${size} kW system will generate approx. ${dailyGeneration.toFixed(2)} kWh per day.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Solar Daily Generation:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateWindGeneration() {
+            const rating = parseFloat(document.getElementById('calc-wind-generation-rating').value);
+            const hours = parseFloat(document.getElementById('calc-wind-generation-hours').value);
+            if (!rating || !hours) { alert('Please enter both rating and operating hours.'); return; }
+            const capacityFactor = 0.25;
+            const dailyGeneration = rating * hours * capacityFactor;
+            const resultText = `A ${rating} kW turbine will generate approx. ${dailyGeneration.toFixed(2)} kWh per day (assuming 25% capacity factor).`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Wind Daily Generation:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateBiogasProduction() {
+            const waste = parseFloat(document.getElementById('calc-biogas-production-waste').value);
+            if (!waste) { alert('Please enter daily waste amount.'); return; }
+            const gasYield = 0.04;
+            const dailyProduction = waste * gasYield;
+            const resultText = `You can produce approx. ${dailyProduction.toFixed(2)} m³ of biogas per day.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Biogas Daily Production:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateBiogasElectricity() {
+            const gas = parseFloat(document.getElementById('calc-biogas-electricity-gas').value);
+            if (!gas) { alert('Please enter daily gas production.'); return; }
+            const kwhPerM3 = 4.7;
+            const dailyElectricity = gas * kwhPerM3;
+            const resultText = `${gas} m³ of biogas can generate approx. ${dailyElectricity.toFixed(2)} kWh of electricity.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Biogas Electricity Equivalent:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateHydroPower() {
+            const head = parseFloat(document.getElementById('calc-hydro-head').value);
+            const flow = parseFloat(document.getElementById('calc-hydro-flow').value);
+            if (!head || !flow) { alert('Please enter both head and flow rate.'); return; }
+            const efficiency = 0.6;
+            const power = (head * flow * 9.81 * efficiency) / 1000;
+            const resultText = `Estimated potential power is ${power.toFixed(2)} kW.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Micro-Hydro Power Output:</strong><br>${resultText}</div>`);
+        }
+
+        function calculateGeothermalCapacity() {
+            const area = parseFloat(document.getElementById('calc-geothermal-area').value);
+            if (!area) { alert('Please enter the house area.'); return; }
+            const capacityTons = area / 550;
+            const capacityBtu = capacityTons * 12000;
+            const annualSavings = (2000 * 12) * 0.5; 
+            const resultText = `Required Capacity: ${capacityTons.toFixed(2)} tons (~${Math.round(capacityBtu)} BTU/hr).<br>Estimated Annual Savings: ${Math.round(annualSavings)} kWh.`;
+            log(`<div class="p-2"><strong style="color: #34d399;">Geothermal System Estimate:</strong><br>${resultText}</div>`);
+        }
+    </script>
+</body>
+
+</html>
